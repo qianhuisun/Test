@@ -22,7 +22,7 @@ typedef struct custom_event{
     uint64_t cpu_id;
     int64_t tid;
     uint64_t payload_size;
-    int64_t payloads[];
+    int64_t *payloads;
 } custom_event;
 
 
@@ -52,16 +52,17 @@ int main(int argc, char *argv[])
     custom_event* custom_event_object;
     // int i = 0;
     // receiver suppose to be blocked if there is no data coming
-    
-    while (true) {
+    bool flag_stop_recv = false;
+    while (!flag_stop_recv) {
         recv(connfd, packet_size, sizeof(uint64_t) * PACKET_NUMBER, 0);
         uint64_t payload_size = 0;
         for (int i = 0; i < PACKET_NUMBER; i++)
         {
             payload_size += packet_size[i];
         }
+        printf("%" PRIu64 "\n", payload_size);
         char payload_packet[payload_size];
-        void *pointer;
+        char *pointer;
         // custom_event_object = (custom_event*) malloc (event_size);
         memset(payload_packet, 0, payload_size);
         pointer = payload_packet;
@@ -71,9 +72,17 @@ int main(int argc, char *argv[])
         for(int i = 0; i < PACKET_NUMBER; i++)
         {
             int size = packet_size[i];
-            if (size == 0) continue;
-            custom_event_object = pointer;
+            printf("%d\t event_size = %d\n", i, size);
 
+            if (size == 0) {
+                flag_stop_recv = true;
+                break;
+            }
+            custom_event_object = (custom_event*)pointer;
+            pointer += size;
+
+            printf("%d\t event_name = %s\n", i, custom_event_object->event_name);
+                
             // if (custom_event_object->last_event) break;
             if (strcmp(custom_event_object->event_name, "syscall_entry_write") == 0) {
                 printf("%d\t event_name = %s cpu_id = %" PRIu64 " tid = %" PRIu64, i, custom_event_object->event_name, custom_event_object->cpu_id, custom_event_object->tid);

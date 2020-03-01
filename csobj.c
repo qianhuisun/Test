@@ -21,8 +21,8 @@ uint64_t packet_size[PACKET_NUMBER];
 // will use htonl and ntohl to code and decode
 uint64_t packet_size_send[PACKET_NUMBER];
 // array which saves 100 custom_event, will be sent through TCP socket
-int64_t payload_packet[];
-void *pointer = payload_packet;
+char *event_objects = NULL;
+char *pointer = NULL;
 
 typedef struct custom_event{
     // bool last_event;
@@ -33,7 +33,7 @@ typedef struct custom_event{
     uint64_t cpu_id;
     int64_t tid;
     uint64_t payload_size;
-    int64_t payloads[];
+    int64_t payloads;
 } custom_event;
 
 /* Sink component's private data */
@@ -162,6 +162,9 @@ bt_component_class_initialize_method_status object_csobj_initialize(
         printf("\n Error: Connect Failed \n");
         return 1;
     }
+
+    event_objects = malloc(100000);
+    pointer = event_objects;
  
     return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_OK;
 }
@@ -183,7 +186,7 @@ void object_csobj_finalize(bt_self_component_sink *self_component_sink)
     /* Send object size */
     send(object_out->sockfd, packet_size, sizeof(uint64_t) * PACKET_NUMBER, 0);
     /* Send object */
-    send(object_out->sockfd, payload_packet, total_size, 0);
+    send(object_out->sockfd, event_objects, total_size, 0);
 
 
     // custom_event *custom_event_object = (custom_event*) malloc (sizeof(custom_event));
@@ -453,14 +456,14 @@ void print_message(struct object_out *object_out, const bt_message *message)
     // will use htonl and ntohl to code and decode
     uint64_t packet_size_send[PACKET_NUMBER];
     // array which saves 100 custom_event, will be sent through TCP socket
-    int64_t payload_packet[];
-    void *pointer = payload_packet;
+    int64_t event_objects[];
+    void *pointer = event_objects;
     */
     printf("index = %lu\n", packet_index);
     printf(", \"event_name\":\"%s\"", custom_event_object->event_name);
     packet_size[packet_index] = event_size;
     // packet_size_send
-    memcpy(pointer, &custom_event_object, event_size);
+    memcpy(pointer, custom_event_object, event_size);
     pointer += event_size;
     total_size += event_size;
     packet_index++;
@@ -471,9 +474,9 @@ void print_message(struct object_out *object_out, const bt_message *message)
         /* Send object size */
         send(object_out->sockfd, packet_size, sizeof(uint64_t) * PACKET_NUMBER, 0);
         /* Send object */
-        send(object_out->sockfd, payload_packet, total_size, 0);
-        memset(payload_packet, 0, total_size);
-        pointer = payload_packet;
+        send(object_out->sockfd, event_objects, total_size, 0);
+        memset(event_objects, 0, total_size);
+        pointer = event_objects;
         total_size = 0;
         packet_index = 0;
     }
@@ -484,7 +487,7 @@ void print_message(struct object_out *object_out, const bt_message *message)
     /* Print index */
     printf("#%" PRIu64, object_out->index);
 
-    printf(" fd = %" PRIu64, *(uint64_t *)(custom_event_object + 1));
+    //printf(" fd = %" PRIu64, *(uint64_t *)(custom_event_object + 1));
 
     /* Print timestamp (ns from origin) */
     //printf(", \"timestamp\":\"%s\"", custom_event_object->timestamp);
